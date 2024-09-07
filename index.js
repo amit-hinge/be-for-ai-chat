@@ -31,7 +31,7 @@ const reqHandler = async (req, res) => {
   if (
     event.type !== "message.new" ||
     !event.message ||
-    event.message.user.id === "chat-ai-assistant" ||
+    event.message.user.id === provider ||
     !event.channel_type ||
     !event.channel_id
   ) {
