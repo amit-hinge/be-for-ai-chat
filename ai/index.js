@@ -29,6 +29,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   const chunks = contentStreamGenerator(prompt);
 
   for await (const chunk of chunks) {
+    console.log("chunk", chunk)
     await channel.sendEvent({
       // @ts-expect-error - non-standard event, StreamedMessage subscribes to it
       type: "gpt_chunk",
@@ -43,6 +44,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   // update the message created in step 1 to include the full response.
   // This way, the response will be stored in the Stream API, and we can
   // use it later without having to go to ChatGPT again.
+  console.log("text", text)
   await client.updateMessage(
     {
       id: message.message.id,
