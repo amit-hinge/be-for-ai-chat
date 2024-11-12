@@ -9,6 +9,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
     type: "regular",
     // 1.1 flag to indicate the ui to render a streamed message
     isGptStreamed: true,
+    text: "ai reply"
   });
 
   // give some time for the ui to render the streamed message
@@ -29,7 +30,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   const chunks = contentStreamGenerator(prompt);
 
   for await (const chunk of chunks) {
-    console.log("chunk", chunk)
+    console.log("chunk", chunk, message.message.id)
     await channel.sendEvent({
       // @ts-expect-error - non-standard event, StreamedMessage subscribes to it
       type: "gpt_chunk",
@@ -45,16 +46,16 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   // This way, the response will be stored in the Stream API, and we can
   // use it later without having to go to ChatGPT again.
   console.log("text", text)
-  await client.updateMessage(
-    {
-      id: message.message.id,
-      // 3.1 flag to indicate the ui to stop rendering the streamed message
-      isGptStreamed: false,
-      // 3.2 store the full text in the message
-      text,
-    },
-    provider,
-  );
+  // await client.updateMessage(
+  //   {
+  //     id: message.message.id,
+  //     // 3.1 flag to indicate the ui to stop rendering the streamed message
+  //     isGptStreamed: false,
+  //     // 3.2 store the full text in the message
+  //     text,
+  //   },
+  //   provider,
+  // );
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
