@@ -9,7 +9,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
     type: "regular",
     // 1.1 flag to indicate the ui to render a streamed message
     isGptStreamed: true,
-    text: "ai reply"
+    text: "..."
   });
 
   // give some time for the ui to render the streamed message
