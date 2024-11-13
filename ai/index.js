@@ -45,7 +45,7 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   // update the message created in step 1 to include the full response.
   // This way, the response will be stored in the Stream API, and we can
   // use it later without having to go to ChatGPT again.
-  console.log("text", text)
+  console.log("combined text", text)
   await client.updateMessage(
     {
       id: message.message.id,
