@@ -46,16 +46,16 @@ async function startAiBotStreaming(client, channel, prompt, provider) {
   // This way, the response will be stored in the Stream API, and we can
   // use it later without having to go to ChatGPT again.
   console.log("text", text)
-  // await client.updateMessage(
-  //   {
-  //     id: message.message.id,
-  //     // 3.1 flag to indicate the ui to stop rendering the streamed message
-  //     isGptStreamed: false,
-  //     // 3.2 store the full text in the message
-  //     text,
-  //   },
-  //   provider,
-  // );
+  await client.updateMessage(
+    {
+      id: message.message.id,
+      // 3.1 flag to indicate the ui to stop rendering the streamed message
+      isGptStreamed: false,
+      // 3.2 store the full text in the message
+      text,
+    },
+    provider,
+  );
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
