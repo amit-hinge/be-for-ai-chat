@@ -44,6 +44,7 @@ const reqHandler = async (req, res) => {
     return res.status(200).send("Not a new message");
   }
 
+  console.log("##################################################################################")
   console.log("This is the event: ", event);
   const channel = client.channel(event.channel_type, event.channel_id);
   const prompt = event.message?.text;
@@ -57,6 +58,9 @@ const reqHandler = async (req, res) => {
       },
     );
   }
+
+  console.log("DONE")
+  console.log("----------------------------------------------------------------------------------")
 
   return res.status(200).send("OK");
 };
