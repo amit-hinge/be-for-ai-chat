@@ -44,6 +44,7 @@ const reqHandler = async (req, res) => {
     return res.status(200).send("Not a new message");
   }
 
+  console.log("This is the message: ", event.message);
   const channel = client.channel(event.channel_type, event.channel_id);
   const prompt = event.message?.text;
   const chatBotName = event?.channel?.aiName;
