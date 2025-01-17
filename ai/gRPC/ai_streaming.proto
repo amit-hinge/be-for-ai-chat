@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package ai;
+
+service AiStreamingService {
+  // Bi-directional streaming for prompt-response conversation
+  rpc StreamResponses(stream StreamRequest) returns (stream StreamResponse);
+}
+
+message StreamRequest {
+  string provider = 1; // e.g., "openai", "gemini"
+  string prompt = 2;   // Prompt text
+}
+
+message StreamResponse {
+  string chunk = 1;    // Chunk of response
+  string full_text = 2; // Aggregated response (sent in the last message)
+  bool is_final = 3;   // Indicates if this is the final message
+}
