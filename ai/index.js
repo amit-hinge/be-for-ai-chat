@@ -1,23 +1,22 @@
 const { startStreaming } = require("./openAI");
 
+// Configuration - can match communication-service or send every chunk
+// Set USE_BATCHING=true to match communication-service behavior
+const USE_BATCHING = process.env.USE_BATCHING === "true";
+const BATCH_SIZE = 15;  // Same as communication-service
+const EARLY_UPDATE_LIMIT = 10;  // Same as communication-service
+
 /**
  * Starts AI bot streaming response to a Stream Chat channel
  * 
- * This implementation reproduces the bug in stream-chat-react-native SDK where
- * message text doesn't update when the final partialUpdateMessage call has the
- * EXACT SAME text as the last streaming update.
- * 
- * BUG REPRODUCTION STRATEGY:
- * - Send EVERY chunk during streaming (no batching)
- * - Final call will have the EXACT same text as the last streaming update
- * - Only 'generating' changes from true → false
- * - Since 'generating' is not in stringifyMessage(), the UI won't re-render
+ * Environment variables:
+ * - USE_BATCHING: "true" to use communication-service's batching logic
+ * - FINALIZE_DELAY_MS: delay in ms before final update (test timing hypothesis)
  * 
  * Flow:
  * 1. Create empty message with ai_generated: true
- * 2. Stream AI response, updating message text on EVERY chunk
- * 3. Finalize: Set final text (SAME) with generating: false in single atomic call
- *    → This triggers the bug!
+ * 2. Stream AI response (either every chunk or batched like communication-service)
+ * 3. Finalize: Set final text with generating: false
  */
 async function startAiBotStreaming(client, channel, prompt, aiUserId) {
   console.log(`[AI Bot] Starting streaming for prompt: "${prompt.substring(0, 50)}..."`);
@@ -35,11 +34,12 @@ async function startAiBotStreaming(client, channel, prompt, aiUserId) {
 
   await sleep(300);
 
-  // 2. Stream AI response - send EVERY chunk to ensure final text matches last update
+  // 2. Stream AI response
   let extractedText = "";
   let chunkCounter = 0;
 
   const chunks = startStreaming(prompt);
+  console.log(`[AI Bot] Batching mode: ${USE_BATCHING ? "ON (like communication-service)" : "OFF (every chunk)"}`);
 
   try {
     for await (const chunk of chunks) {
@@ -48,32 +48,48 @@ async function startAiBotStreaming(client, channel, prompt, aiUserId) {
       chunkCounter++;
       extractedText += chunk;
 
-      // Send EVERY chunk - no batching!
-      // This ensures the final text will be EXACTLY the same as the last update
-      console.log(`[AI Bot] partialUpdateMessage (chunk ${chunkCounter}): ${extractedText.length} chars`);
+      // Determine if we should send an update
+      let shouldUpdate = true;
+      if (USE_BATCHING) {
+        // Match communication-service batching logic
+        shouldUpdate = 
+          chunkCounter % BATCH_SIZE === 0 ||
+          (chunkCounter < EARLY_UPDATE_LIMIT && chunkCounter % 2 !== 0);
+      }
 
-      await client.partialUpdateMessage(messageId, {
-        set: {
-          generating: true,
-          text: extractedText,
-        },
-      }, aiUserId);
+      if (shouldUpdate) {
+        console.log(`[AI Bot] partialUpdateMessage (chunk ${chunkCounter}): ${extractedText.length} chars`);
+
+        await client.partialUpdateMessage(messageId, {
+          set: {
+            generating: true,
+            text: extractedText,
+          },
+        }, aiUserId);
+      }
     }
 
-    // 3. Finalize message - THIS IS THE BUG!
+    // 3. Finalize message - TEST TIMING HYPOTHESIS
     // 
-    // At this point:
-    // - extractedText is EXACTLY the same as the last streaming update
-    // - Only 'generating' changes from true → false
-    // - stringifyMessage() doesn't include 'generating'
-    // - So the memoized message context won't update
-    // - UI SHOULD NOT re-render (bug!)
+    // The 1000ms delay "fix" in communication-service suggests this is a timing issue.
+    // Let's test with different delays to understand the behavior.
     //
-    // If updated_at alone triggers re-render, the bug won't appear.
-    // The bug appears when text is same AND the timing is right.
+    // Set FINALIZE_DELAY_MS env var to test different delays:
+    // - 0ms (default): immediate finalize, should trigger bug if it's timing-related
+    // - 100ms: small delay
+    // - 500ms: medium delay  
+    // - 1000ms: same as communication-service fix
     
-    console.log(`[AI Bot] Finalizing message (SAME TEXT): ${messageId}`);
-    console.log(`[AI Bot] Text length: ${extractedText.length} chars (should match last update)`);
+    const finalizeDelay = parseInt(process.env.FINALIZE_DELAY_MS || "0", 10);
+    
+    console.log(`[AI Bot] Last chunk sent. Text length: ${extractedText.length} chars`);
+    console.log(`[AI Bot] Waiting ${finalizeDelay}ms before finalize...`);
+    
+    if (finalizeDelay > 0) {
+      await sleep(finalizeDelay);
+    }
+    
+    console.log(`[AI Bot] Finalizing message: ${messageId}`);
 
     await client.partialUpdateMessage(messageId, {
       set: {
