@@ -1,24 +1,18 @@
 {
-  "name": "chat-gpt",
+  "name": "be-for-ai-chat",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend server for AI chat streaming to Stream Chat",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "start:gemini": "node index.js gemini",
-    "start:openai": "node index.js openai",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node --watch index.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
     "openai": "^4.28.4",
-    "stream-chat": "^8.19.0"
-  },
-  "devDependencies": {
-    "prettier": "3.2.5"
+    "stream-chat": "^8.52.1"
   }
 }

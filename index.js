@@ -5,16 +5,27 @@ const StreamChat = require("stream-chat").StreamChat;
 const { startAiBotStreaming } = require("./ai");
 
 const app = express();
-const port = 3000;
-app.use(express.raw({ type: "application/json" })); // <-- parses all bodies as a Buffer
+const port = process.env.PORT || 3000;
+
+app.use(express.raw({ type: "application/json" }));
 
 const apiKey = process.env.STREAM_API_KEY;
 const apiSecret = process.env.STREAM_API_SECRET;
 
+if (!apiKey || !apiSecret) {
+  console.error("Please provide STREAM_API_KEY and STREAM_API_SECRET env variables");
+  process.exit(1);
+}
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error("Please provide OPENAI_API_KEY env variable");
+  process.exit(1);
+}
+
 const reqHandler = async (req, res) => {
   const client = StreamChat.getInstance(apiKey, apiSecret);
 
-  // parse the request budy
+  // Parse and verify webhook
   const rawBody = req.body;
   const isValid = client.verifyWebhook(rawBody, req.headers["x-signature"]);
 
@@ -28,6 +39,8 @@ const reqHandler = async (req, res) => {
   }
 
   const event = body;
+
+  // Only handle new messages from users (not from AI bot)
   if (
     event.type !== "message.new" ||
     !event.message ||
@@ -35,62 +48,35 @@ const reqHandler = async (req, res) => {
     !event.channel_type ||
     !event.channel_id
   ) {
-    // we are interested only in new messages, from regular users
-    return res.status(200).send("Not a new message");
+    return res.status(200).send("Not a new user message");
   }
 
-  // Think about what to do about it
+  // Skip retries
   if (req.headers["x-webhook-attempt"] > 1) {
-    return res.status(200).send("Not a new message");
+    return res.status(200).send("Skipping retry");
   }
 
   const channel = client.channel(event.channel_type, event.channel_id);
   const prompt = event.message?.text;
-  const chatBotName = event?.channel?.aiName;
+  const aiUserId = event?.channel?.aiName || "ai-bot";
 
-  if (channel && prompt && chatBotName) {
-    // start streaming in async mode
-    await startAiBotStreaming(client, channel, prompt, chatBotName).catch(
-      (error) => {
-        console.error("An error occurred", error);
-      },
-    );
+  if (channel && prompt) {
+    // Start streaming in async mode
+    startAiBotStreaming(client, channel, prompt, aiUserId).catch((error) => {
+      console.error("AI streaming error:", error);
+    });
   }
 
   return res.status(200).send("OK");
 };
 
-const startServer = async () => {
-  // if (process.argv.length < 3) {
-  //   console.error(
-  //     "Please provide a name of generative API provider <'openai' | 'gemini'>. E.g., `yarn start gemini`",
-  //   );
-  //   process.exit(1);
-  // }
+app.post("/", reqHandler);
 
-  // const provider = process.argv[2];
-  // if (provider !== "openai" && provider !== "gemini") {
-  //   console.error(
-  //     "Please provide a valid generative API provider <'openai' | 'gemini'>. E.g., `yarn start gemini`",
-  //   );
-  //   process.exit(1);
-  // }
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 
-  // if (provider === "openai" && !process.env.OPENAI_API_KEY) {
-  //   console.error("Please provide OPENAI_API_KEY env variable");
-  //   process.exit(1);
-  // }
-
-  // if (provider === "gemini" && !process.env.GEMINI_API_KEY) {
-  //   console.error("Please provide GEMINI_API_KEY env variable");
-  //   process.exit(1);
-  // }
-
-  app.post("/", reqHandler);
-
-  app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
-  });
-};
-
-startServer();
+app.listen(port, () => {
+  console.log(`AI Chat Backend listening on port ${port}`);
+  console.log(`OpenAI Model: ${process.env.OPENAI_MODEL || "gpt-4o-mini"}`);
+});
